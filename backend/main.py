@@ -1,7 +1,8 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, UploadFile, File, Form
+from vision import extract_takeoff_from_image_bytes
+
 from fastapi.middleware.cors import CORSMiddleware
 
-from vision import extract_takeoff_from_image_bytes
 from quote import compute_quote
 
 app = FastAPI()
@@ -13,12 +14,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 @app.post("/vision")
-async def vision_endpoint(file: UploadFile = File(...), scale_ft_per_pixel: float = 0.02):
-    image_bytes = await file.read()
-    takeoff = extract_takeoff_from_image_bytes(image_bytes, scale_ft_per_pixel=scale_ft_per_pixel)
-    return takeoff
+async def vision(file: UploadFile = File(...), scale_ft_per_pixel: float = Form(...)):
+  image_bytes = await file.read()
+  result = extract_takeoff_from_image_bytes(image_bytes, float(scale_ft_per_pixel))
+  return result
 
 @app.post("/quote")
 async def quote_endpoint(payload: dict):

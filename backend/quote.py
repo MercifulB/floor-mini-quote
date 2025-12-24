@@ -1,48 +1,51 @@
-def compute_quote(payload: dict) -> dict:
-    takeoff = payload.get("takeoff", {})
-    windows = takeoff.get("windows", [])
-    doors = takeoff.get("doors", [])
+from __future__ import annotations
+
+from typing import Any, Dict
+
+
+def compute_quote(payload: Dict[str, Any]) -> Dict[str, Any]:
+    takeoff = payload.get("takeoff") or {}
+
+    # Your vision returns counts now
+    windows_count = int(takeoff.get("windows", 0))
+    doors_count = int(takeoff.get("doors", 0))
 
     material = payload.get("material", "aluminum")
-    include_install = bool(payload.get("include_installation", False))
+    include_installation = bool(payload.get("include_installation", False))
 
+    # Simple pricing rules (adjust later)
     base_prices = {
-        "window": 650.0,
-        "door": 900.0
-    }
-    material_multiplier = {
-        "aluminum": 1.15,
-        "steel": 1.35
+        "aluminum": {"window": 900, "door": 1100},
+        "steel": {"window": 1300, "door": 1600},
     }
 
-    mult = material_multiplier.get(material, 1.15)
+    if material not in base_prices:
+        material = "aluminum"
 
-    window_cost = len(windows) * base_prices["window"] * mult
-    door_cost = len(doors) * base_prices["door"] * mult
-    subtotal = window_cost + door_cost
+    window_unit = base_prices[material]["window"]
+    door_unit = base_prices[material]["door"]
 
-    low_conf = [x for x in windows + doors if x.get("confidence", 0) < 0.70]
-    contingency_rate = 0.08 if len(low_conf) == 0 else 0.15
+    materials_subtotal = windows_count * window_unit + doors_count * door_unit
 
-    install_rate = 0.20 if include_install else 0.0
+    install_fee = int(materials_subtotal * 0.18) if include_installation else 0
+    subtotal = materials_subtotal + install_fee
 
-    low = subtotal * (1 + install_rate)
-    high = subtotal * (1 + install_rate + contingency_rate)
+    quote_low = int(subtotal * 0.92)
+    quote_high = int(subtotal * 1.12)
 
-    assumptions = []
-    assumptions.append(f"Material pricing multiplier: {material} at {mult}.")
-    assumptions.append("Base prices are simplified demo values.")
-    if include_install:
-        assumptions.append("Installation add on applied.")
-    if len(low_conf) > 0:
-        assumptions.append("Higher contingency due to low confidence detections.")
+    assumptions = [
+        "Counts are based on symbol detection and should be verified against drawings.",
+        f"Unit pricing uses a simplified {material} rate card.",
+    ]
+    if include_installation:
+        assumptions.append("Installation is estimated as 18% of materials.")
 
     return {
-        "counts": {"windows": len(windows), "doors": len(doors)},
+        "counts": {"windows": windows_count, "doors": doors_count},
         "material": material,
-        "include_installation": include_install,
-        "subtotal": round(subtotal, 2),
-        "quote_low": round(low, 2),
-        "quote_high": round(high, 2),
-        "assumptions": assumptions
+        "include_installation": include_installation,
+        "subtotal": materials_subtotal,
+        "quote_low": quote_low,
+        "quote_high": quote_high,
+        "assumptions": assumptions,
     }

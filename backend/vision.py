@@ -1,85 +1,63 @@
-import io
-import numpy as np
+from __future__ import annotations
+
+import os
+from typing import Any, Dict
+
 import cv2
-from PIL import Image
+import numpy as np
 
-def _to_cv2_bgr(image_bytes: bytes) -> np.ndarray:
-    pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    arr = np.array(pil_img)
-    bgr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
-    return bgr
+from template_matcher import load_symbol_templates, match_symbols_on_plan
 
-def extract_takeoff_from_image_bytes(image_bytes: bytes, scale_ft_per_pixel: float = 0.02) -> dict:
-    img = _to_cv2_bgr(image_bytes)
+DATASET_ROOT = os.getenv("FDS_ROOT", "cv_training/data/furnishing-dataset/FDS")
+TEMPLATES = load_symbol_templates(DATASET_ROOT)
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    edges = cv2.Canny(blur, 50, 150)
-    edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+def extract_takeoff_from_image_bytes(image_bytes: bytes, scale_ft_per_pixel: float) -> Dict[str, Any]:
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise ValueError("Could not decode image bytes")
 
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # ✅ downscale big plans for speed
+    max_dim = int(os.getenv("TM_MAX_DIM", "1400"))  # try 1200–1800
+    h, w = img.shape[:2]
+    resize_scale = min(1.0, max_dim / max(h, w))
+    if resize_scale < 1.0:
+        img = cv2.resize(
+            img,
+            (int(w * resize_scale), int(h * resize_scale)),
+            interpolation=cv2.INTER_AREA,
+        )
 
-    windows = []
-    doors = []
-    idx_w = 1
-    idx_d = 1
+    dets = match_symbols_on_plan(
+        img,
+        TEMPLATES,
+        score_threshold=float(os.getenv("TM_SCORE", "0.58")),
+    )
 
-    h_img, w_img = gray.shape[:2]
+    window_count = sum(1 for d in dets if d.label == "window")
+    door_count = sum(1 for d in dets if d.label.startswith("door_"))
 
-    for c in contours:
-        area = cv2.contourArea(c)
-        if area < 500:
-            continue
+    takeoff = {"windows": window_count, "doors": door_count}
 
-        peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
-
-        if len(approx) != 4:
-            continue
-
-        x, y, w, h = cv2.boundingRect(approx)
-
-        if w < 15 or h < 15:
-            continue
-        if x <= 0 or y <= 0 or x + w >= w_img or y + h >= h_img:
-            continue
-
-        aspect = w / float(h)
-
-        width_ft = round(w * scale_ft_per_pixel, 2)
-        height_ft = round(h * scale_ft_per_pixel, 2)
-
-        confidence = 0.60
-        if 0.7 <= aspect <= 1.6:
-            confidence = 0.75
-        if 1.6 < aspect <= 3.2:
-            confidence = 0.78
-
-        item = {
-            "bbox": {"x": int(x), "y": int(y), "w": int(w), "h": int(h)},
-            "width_ft": width_ft,
-            "height_ft": height_ft,
-            "confidence": confidence
-        }
-
-        if aspect > 1.6:
-            item["id"] = f"W{idx_w}"
-            idx_w += 1
-            windows.append(item)
-        else:
-            item["id"] = f"D{idx_d}"
-            idx_d += 1
-            doors.append(item)
+    detections = [
+        {"label": d.label, "bbox": [d.x1, d.y1, d.x2, d.y2], "score": round(d.score, 3)}
+        for d in dets
+    ]
 
     uncertainty = []
-    if scale_ft_per_pixel <= 0:
-        uncertainty.append("Scale is not set.")
-    if len(windows) + len(doors) == 0:
-        uncertainty.append("No rectangular features detected. Try a different plan image.")
+    if window_count == 0:
+        uncertainty.append("No windows detected. The floor plan style may differ from the template library.")
+    if door_count == 0:
+        uncertainty.append("No doors detected. Try increasing TM_SCORE sensitivity or use a clearer plan image.")
 
     return {
-        "project": {"name": "Demo Project", "units": "ft", "scale_ft_per_pixel": scale_ft_per_pixel},
-        "takeoff": {"windows": windows, "doors": doors},
-        "uncertainty": uncertainty
+        "takeoff": takeoff,
+        "detections": detections,
+        "uncertainty": uncertainty,
+        "meta": {
+            "scale_ft_per_pixel": scale_ft_per_pixel,
+            "resize_scale": resize_scale,
+            "template_counts": {k: len(v) for k, v in TEMPLATES.items()},
+        },
     }

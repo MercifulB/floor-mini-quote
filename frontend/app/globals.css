@@ -3,15 +3,6 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --btn-border: #333333;
-  --input-border: #dddddd;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,15 +15,15 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    font-family: -apple-system, "Apple Color Emoji",
+      "Segoe UI Emoji";
+  }
+  
 }
 
-/* Buttons */
+
 button {
-  padding: 10px;
-  border: 1px solid var(--btn-border);
-  border-radius: 10px;
-  background: #ffffff;
   cursor: pointer;
   transition: filter 0.15s ease, background-color 0.15s ease;
 }
@@ -41,37 +32,43 @@ button:hover {
   filter: brightness(0.92);
 }
 
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  filter: none;
-}
-
-/* Inputs */
-input,
-select,
-textarea {
-  border: 1px solid var(--input-border);
-  border-radius: 8px;
-  padding: 10px;
-}
-
-/* Make checkbox behave like a clickable control */
-input[type="checkbox"] {
-  cursor: pointer;
-}
-
-/* File upload label styled like a button */
 label[role="button"] {
   display: inline-block;
-  padding: 10px;
-  border: 1px solid var(--btn-border);
-  border-radius: 10px;
-  background: #ffffff;
   cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #333333;
+  border-radius: 10px;
+  padding: 10px;
   transition: filter 0.15s ease, background-color 0.15s ease;
+ 
 }
 
 label[role="button"]:hover {
   filter: brightness(0.92);
+}
+
+/* Chat markdown styling */
+.prose h1,
+.prose h2,
+.prose h3 {
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+
+}
+
+.prose ul {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.prose li {
+  margin-bottom: 0.25rem;
+}
+
+.prose p {
+  margin: 0.25rem 0;
+}
+
+.prose strong {
+  font-weight: 600;
 }

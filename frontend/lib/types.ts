@@ -1,17 +1,23 @@
-export type BBox = { x: number; y: number; w: number; h: number };
+export type Detection = {
+  label: string;
+  bbox: [number, number, number, number];
+  score: number;
+};
 
-export type TakeoffItem = {
-  id: string;
-  width_ft: number;
-  height_ft: number;
-  confidence: number;
-  bbox: BBox;
+export type TakeoffMeta = {
+  scale_ft_per_pixel: number;
+  resize_scale?: number;
+  template_counts?: Record<string, number>;
 };
 
 export type Takeoff = {
-  project: { name: string; units: string; scale_ft_per_pixel: number };
-  takeoff: { windows: TakeoffItem[]; doors: TakeoffItem[] };
+  takeoff: {
+    windows: number;
+    doors: number;
+  };
+  detections: Detection[];
   uncertainty: string[];
+  meta?: TakeoffMeta;
 };
 
 export type Quote = {

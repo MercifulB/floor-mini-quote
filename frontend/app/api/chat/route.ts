@@ -15,6 +15,7 @@ You must answer using only the provided TAKEOFF JSON and QUOTE RULES.
 If you do not have enough information, ask a specific clarifying question.
 Do not invent measurements, counts, brands, or prices outside the rules.
 When you give a number, explain which items you used by id.
+Respond using clear Markdown. Use headings, bullet points, and bold text where appropriate. Do not include JSON in your response.
   `.trim();
 
   const context = `

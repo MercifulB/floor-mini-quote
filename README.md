@@ -1,4 +1,4 @@
-# Floor Mini Quote
+# Mini Floor Quote
 
 A lightweight demo inspired by Latii: upload a floor plan, extract a basic takeoff (windows and doors) using computer vision, generate a quote range using explicit pricing rules, and ask a chat agent questions grounded in the takeoff and quote settings.
 
